@@ -67,11 +67,15 @@ class IsaacLabVectorEnv(
         headless: bool = True,
         use_priv_info: bool = False,
         env_cfg_overrides: dict[str, Any] | None = None,
+        enable_cameras: bool | None = None,
+        render_mode: str | None = None,
     ):
         from isaaclab.app import AppLauncher
 
-        app_launcher = AppLauncher(headless=headless, device=device, enable_cameras=not headless)
+        _enable_cameras = (not headless) if enable_cameras is None else enable_cameras
+        app_launcher = AppLauncher(headless=headless, device=device, enable_cameras=_enable_cameras)
         self.simulation_app = app_launcher.app
+        self._render_mode = render_mode
 
         from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
 
@@ -92,7 +96,7 @@ class IsaacLabVectorEnv(
                 setattr(env_cfg, k, v)
         self.seed = seed
         self.device = device
-        self.envs = gym.make(env_name, cfg=env_cfg, render_mode=None)
+        self.envs = gym.make(env_name, cfg=env_cfg, render_mode=self._render_mode)
 
         self.num_envs = cast(Any, self.envs.unwrapped).num_envs
         self.max_episode_steps = cast(Any, self.envs.unwrapped).max_episode_length
@@ -214,8 +218,8 @@ class IsaacLabVectorEnv(
         # self.simulation_app.close()
         return
 
-    def render(self) -> None:
-        raise NotImplementedError("We don't support rendering for IsaacLab environments")
+    def render(self) -> Any:
+        return self.envs.render()
 
 
 def make_isaaclab_env(
@@ -225,6 +229,8 @@ def make_isaaclab_env(
     headless: bool = True,
     use_priv_info: bool = False,
     env_cfg_overrides: dict[str, Any] | None = None,
+    enable_cameras: bool | None = None,
+    render_mode: str | None = None,
 ) -> IsaacLabVectorEnv:
     if env_name not in ACTION_BOUNDS:
         print(f"Action bounds not defined for {env_name}; using default value 1.0.")
@@ -239,5 +245,7 @@ def make_isaaclab_env(
         headless=headless,
         use_priv_info=use_priv_info,
         env_cfg_overrides=env_cfg_overrides,
+        enable_cameras=enable_cameras,
+        render_mode=render_mode,
     )
     return env
