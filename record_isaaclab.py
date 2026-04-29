@@ -6,7 +6,7 @@ os.environ["NUMEXPR_NUM_THREADS"] = "2"
 
 import argparse
 import random
-from typing import MutableMapping
+from typing import Any, MutableMapping, cast
 
 import hydra
 import imageio
@@ -35,16 +35,30 @@ def record(args: argparse.Namespace) -> None:
         torch.backends.cudnn.allow_tf32 = True
         torch.set_float32_matmul_precision("high")
 
+    raw_overrides = getattr(cfg.env, "env_cfg_overrides", None) or {}
+    try:
+        env_cfg_overrides = OmegaConf.to_container(raw_overrides, resolve=True)
+    except Exception:
+        env_cfg_overrides = dict(raw_overrides)
+    device = args.device or ("cuda:0" if torch.cuda.is_available() else "cpu")
+    OmegaConf.update(cfg, "agent.device_type", device)
     env = make_isaaclab_env(
         env_name=cfg.env.env_name,
         num_envs=args.num_envs,
         seed=cfg.seed,
         headless=True,
-        use_priv_info=cfg.env.get("use_priv_info", False),
-        env_cfg_overrides=dict(cfg.env.env_cfg_overrides) if cfg.env.get("env_cfg_overrides") else None,
+        use_priv_info=getattr(cfg.env, "use_priv_info", False),
+        env_cfg_overrides=env_cfg_overrides or None,
         enable_cameras=True,
         render_mode="rgb_array",
+        device=device,
     )
+
+    # Set full gravity and disable curriculum (env starts at g=-0.05 with curriculum)
+    import carb
+    unwrapped = cast(Any, env.envs.unwrapped)
+    unwrapped.cfg.gravity_curriculum = False
+    env.envs.unwrapped.physics_sim_view.set_gravity(carb.Float3(0.0, 0.0, -9.81))  # type: ignore
 
     observations, env_info = env.reset(random_start_init=False)
     agent = create_agent(
@@ -103,5 +117,6 @@ if __name__ == "__main__":
     parser.add_argument("--num_envs", type=int, default=1)
     parser.add_argument("--num_episodes", type=int, default=3)
     parser.add_argument("--fps", type=int, default=30)
+    parser.add_argument("--device", type=str, default=None, help="CUDA device, e.g. cuda:0, cuda:1")
     args = parser.parse_args()
     record(args)

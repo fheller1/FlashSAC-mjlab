@@ -48,6 +48,8 @@ def play(args: argparse.Namespace) -> None:
         env_cfg_overrides = OmegaConf.to_container(raw_overrides, resolve=True)
     except Exception:
         env_cfg_overrides = dict(raw_overrides)
+    device = args.device or ("cuda:0" if torch.cuda.is_available() else "cpu")
+    OmegaConf.update(cfg, "agent.device_type", device)
     env = make_isaaclab_env(
         env_name=cfg.env.env_name,
         num_envs=num_envs,
@@ -55,6 +57,7 @@ def play(args: argparse.Namespace) -> None:
         headless=args.headless,
         use_priv_info=getattr(cfg.env, "use_priv_info", False),
         env_cfg_overrides=env_cfg_overrides or None,
+        device=device,
     )
 
     # Set full gravity and disable curriculum (env starts at g=-0.05 with curriculum)
@@ -112,5 +115,6 @@ if __name__ == "__main__":
     parser.add_argument("--num_envs", type=int, default=16, help="Number of parallel environments for visualization")
     parser.add_argument("--num_episodes", type=int, default=10, help="Number of episodes to play")
     parser.add_argument("--headless", action="store_true", default=False, help="Run without display")
+    parser.add_argument("--device", type=str, default=None, help="CUDA device, e.g. cuda:0, cuda:1")
     args = parser.parse_args()
     play(args)

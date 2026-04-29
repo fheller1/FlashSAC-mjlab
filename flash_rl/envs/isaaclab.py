@@ -231,15 +231,17 @@ def make_isaaclab_env(
     env_cfg_overrides: dict[str, Any] | None = None,
     enable_cameras: bool | None = None,
     render_mode: str | None = None,
+    device: str | None = None,
 ) -> IsaacLabVectorEnv:
     if env_name not in ACTION_BOUNDS:
         print(f"Action bounds not defined for {env_name}; using default value 1.0.")
     action_bounds = ACTION_BOUNDS.get(env_name, 1.0)
+    resolved_device = device or ("cuda:0" if torch.cuda.is_available() else "cpu")
     env = IsaacLabVectorEnv(
         env_name=env_name,
         num_envs=num_envs,
         seed=seed,
-        device="cuda:0" if torch.cuda.is_available() else "cpu",
+        device=resolved_device,
         action_bounds=action_bounds,
         to_numpy=True,
         headless=headless,
