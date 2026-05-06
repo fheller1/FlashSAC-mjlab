@@ -68,6 +68,7 @@ d4rl = [
     "d4rl",
     "mujoco-py>=2.1.2.14", # Old mujoco often needed for D4RL
 ]
+mjlab = ["mjlab"]
 
 # Full installation (excluding isaaclab due to conflict)
 all = [
@@ -88,6 +89,7 @@ conflicts = [
     [{ extra = "isaaclab" }, { extra = "genesis" }],
     [{ extra = "isaaclab" }, { extra = "humanoid-bench" }],
     [{ extra = "isaaclab" }, { extra = "all" }],
+    [{ extra = "mjlab" }, { extra = "mujoco-playground" }],  # mujoco version conflict: mjlab>=3.7 vs playground==3.3.3
 ]
 override-dependencies = [
     "pywin32==306 ; sys_platform == 'win32'",
@@ -111,6 +113,7 @@ d4rl = { git = "https://github.com/takuseno/D4RL.git" }
 isaacsim = { index = "nvidia" }
 isaaclab = { index = "nvidia" }
 sharpawave-rl-lab = { git = "https://github.com/fheller1/sharpa-rl-lab-qol.git", rev = "main" }
+mjlab = { git = "git@github.com:hukz18/mjlab.git", rev = "main" }
 
 [[tool.uv.index]]
 name = "nvidia"
