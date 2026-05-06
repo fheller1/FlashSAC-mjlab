@@ -140,7 +140,10 @@ class Network:
                         state_dict[key] = ckpt["network_state_dict"][key]
             self.network.load_state_dict(state_dict)
         else:
-            self.network.load_state_dict(ckpt["network_state_dict"])
+            state_dict = ckpt["network_state_dict"]
+            if any(k.startswith("_orig_mod.") for k in state_dict):
+                state_dict = {k.removeprefix("_orig_mod."): v for k, v in state_dict.items()}
+            self.network.load_state_dict(state_dict)
 
         if load_optimizer:
             if self.optimizer is not None and ckpt["optimizer_state_dict"] is not None:
