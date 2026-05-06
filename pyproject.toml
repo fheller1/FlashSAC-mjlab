@@ -175,3 +175,6 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "flash_rl.envs.genesis_envs.*"
 ignore_errors = true
+
+[tool.setuptools.packages.find]
+include = ["flash_rl*"]
