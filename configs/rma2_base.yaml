@@ -1,0 +1,28 @@
+##################################################################################
+# FlashSAC RMA Stage 2 — ProprioAdaptTConv training
+##################################################################################
+
+project_name: 'FlashSAC-mjlab'
+entity_name: 'fheller1-tu-darmstadt'
+group_name: 'sharpa-rma2'
+seed: 0
+
+num_env_steps: 500_000_000
+num_train_envs: 1024
+num_eval_envs: null
+num_record_envs: null
+
+gamma: 0.99
+n_step: 3
+
+num_interaction_steps: ${eval:'${num_env_steps} / (${num_train_envs})'}
+updates_per_interaction_step: 1
+
+adapt_lr: 3e-4
+save_interval: 100_000_000   # save every 100M env steps
+log_interval: 1_000_000      # log every 1M env steps
+
+defaults:
+  - _self_
+  - agent: flashSAC_rma
+  - env: mujoco

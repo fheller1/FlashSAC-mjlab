@@ -26,6 +26,17 @@ ACTION_BOUNDS = {
 }
 
 
+def _apply_cfg_overrides(obj: Any, overrides: dict[str, Any]) -> None:
+    for k, v in overrides.items():
+        if isinstance(v, dict):
+            _apply_cfg_overrides(getattr(obj, k), v)
+        else:
+            existing = getattr(obj, k, None)
+            if isinstance(existing, tuple) and isinstance(v, (list, tuple)):
+                v = tuple(v)
+            setattr(obj, k, v)
+
+
 def recursive_to_numpy(
     data: Union[torch.Tensor, dict[str, Any], list[Any], tuple[Any, ...], NDArray],
 ) -> Union[NDArray, dict[str, Any], list[Any], tuple[Any, ...]]:
@@ -67,11 +78,15 @@ class IsaacLabVectorEnv(
         headless: bool = True,
         use_priv_info: bool = False,
         env_cfg_overrides: dict[str, Any] | None = None,
+        enable_cameras: bool | None = None,
+        render_mode: str | None = None,
     ):
         from isaaclab.app import AppLauncher
 
-        app_launcher = AppLauncher(headless=headless, device=device, enable_cameras=not headless)
+        _enable_cameras = (not headless) if enable_cameras is None else enable_cameras
+        app_launcher = AppLauncher(headless=headless, device=device, enable_cameras=_enable_cameras)
         self.simulation_app = app_launcher.app
+        self._render_mode = render_mode
 
         from isaaclab_tasks.utils.parse_cfg import parse_env_cfg
 
@@ -88,11 +103,10 @@ class IsaacLabVectorEnv(
         )
         env_cfg.seed = seed
         if env_cfg_overrides:
-            for k, v in env_cfg_overrides.items():
-                setattr(env_cfg, k, v)
+            _apply_cfg_overrides(env_cfg, env_cfg_overrides)
         self.seed = seed
         self.device = device
-        self.envs = gym.make(env_name, cfg=env_cfg, render_mode=None)
+        self.envs = gym.make(env_name, cfg=env_cfg, render_mode=self._render_mode)
 
         self.num_envs = cast(Any, self.envs.unwrapped).num_envs
         self.max_episode_steps = cast(Any, self.envs.unwrapped).max_episode_length
@@ -156,7 +170,16 @@ class IsaacLabVectorEnv(
         if self.to_numpy:
             obs = obs.cpu().numpy()
             infos = recursive_to_numpy(infos)  # type: ignore
-        infos.update({"actor_observation_size": self.obs_size, "asymmetric_obs": self.asymmetric_obs})
+        infos.update(
+            {
+                "actor_observation_size": self.obs_size,
+                "asymmetric_obs": self.asymmetric_obs,
+                "priv_info_dim": self.priv_info_dim,
+            }
+        )
+        if "proprio_hist" in obs_dict:
+            ph = obs_dict["proprio_hist"]
+            infos["proprio_hist"] = ph.cpu().numpy() if self.to_numpy else ph
         return obs, infos
 
     def step(self, actions: Union[torch.Tensor, F32NDArray]) -> tuple[
@@ -182,7 +205,14 @@ class IsaacLabVectorEnv(
             critic_obs = None
         if self.use_priv_info:
             obs = torch.cat((obs, obs_dict["priv_info"]), dim=-1)
+        episode_info = {
+            k: float(v)
+            for k, v in infos.items()
+            if isinstance(v, (float, int)) or (isinstance(v, torch.Tensor) and v.numel() == 1)
+        }
         infos = {"time_outs": truncations, "observations": {"critic": critic_obs}}
+        if episode_info:
+            infos["episode_info"] = episode_info
         # NOTE: There's really no way to get the raw observations from IsaacLab
         # We just use the 'reset_obs' as next_obs, unfortunately.
         # See https://github.com/isaac-sim/IsaacLab/issues/1362
@@ -194,6 +224,9 @@ class IsaacLabVectorEnv(
             terminations = terminations.cpu().numpy()
             truncations = truncations.cpu().numpy()
             infos = recursive_to_numpy(infos)
+        if "proprio_hist" in obs_dict:
+            ph = obs_dict["proprio_hist"]
+            infos["proprio_hist"] = ph.cpu().numpy() if self.to_numpy else ph
         return obs, rew, terminations, truncations, infos
 
     def close(self, **kwargs: Any) -> None:
@@ -201,8 +234,8 @@ class IsaacLabVectorEnv(
         # self.simulation_app.close()
         return
 
-    def render(self) -> None:
-        raise NotImplementedError("We don't support rendering for IsaacLab environments")
+    def render(self) -> Any:
+        return self.envs.render()
 
 
 def make_isaaclab_env(
@@ -212,19 +245,25 @@ def make_isaaclab_env(
     headless: bool = True,
     use_priv_info: bool = False,
     env_cfg_overrides: dict[str, Any] | None = None,
+    enable_cameras: bool | None = None,
+    render_mode: str | None = None,
+    device: str | None = None,
 ) -> IsaacLabVectorEnv:
     if env_name not in ACTION_BOUNDS:
         print(f"Action bounds not defined for {env_name}; using default value 1.0.")
     action_bounds = ACTION_BOUNDS.get(env_name, 1.0)
+    resolved_device = device or ("cuda:0" if torch.cuda.is_available() else "cpu")
     env = IsaacLabVectorEnv(
         env_name=env_name,
         num_envs=num_envs,
         seed=seed,
-        device="cuda:0" if torch.cuda.is_available() else "cpu",
+        device=resolved_device,
         action_bounds=action_bounds,
         to_numpy=True,
         headless=headless,
         use_priv_info=use_priv_info,
         env_cfg_overrides=env_cfg_overrides,
+        enable_cameras=enable_cameras,
+        render_mode=render_mode,
     )
     return env

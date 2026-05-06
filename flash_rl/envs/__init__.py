@@ -89,7 +89,7 @@ def create_envs(
         try:
             from omegaconf import OmegaConf
 
-            env_cfg_overrides: dict[str, Any] = OmegaConf.to_container(raw_overrides, resolve=True)  # type: ignore[assignment]
+            env_cfg_overrides: dict[str, Any] = OmegaConf.to_container(raw_overrides, resolve=True)
         except Exception:
             env_cfg_overrides = dict(raw_overrides)
         train_env = make_isaaclab_env(
@@ -98,6 +98,7 @@ def create_envs(
             seed=seed,
             use_priv_info=kwargs.get("use_priv_info", False),
             env_cfg_overrides=env_cfg_overrides or None,
+            device=kwargs.get("device") or None,
         )
         # NOTE: IsaacLab/IsaacSim only supports one SimulationApp instance per process by design.
         # See https://github.com/isaac-sim/IsaacLab/discussions/1241
