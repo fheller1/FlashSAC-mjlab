@@ -26,6 +26,17 @@ ACTION_BOUNDS = {
 }
 
 
+def _apply_cfg_overrides(obj: Any, overrides: dict[str, Any]) -> None:
+    for k, v in overrides.items():
+        if isinstance(v, dict):
+            _apply_cfg_overrides(getattr(obj, k), v)
+        else:
+            existing = getattr(obj, k, None)
+            if isinstance(existing, tuple) and isinstance(v, (list, tuple)):
+                v = tuple(v)
+            setattr(obj, k, v)
+
+
 def recursive_to_numpy(
     data: Union[torch.Tensor, dict[str, Any], list[Any], tuple[Any, ...], NDArray],
 ) -> Union[NDArray, dict[str, Any], list[Any], tuple[Any, ...]]:
@@ -92,8 +103,7 @@ class IsaacLabVectorEnv(
         )
         env_cfg.seed = seed
         if env_cfg_overrides:
-            for k, v in env_cfg_overrides.items():
-                setattr(env_cfg, k, v)
+            _apply_cfg_overrides(env_cfg, env_cfg_overrides)
         self.seed = seed
         self.device = device
         self.envs = gym.make(env_name, cfg=env_cfg, render_mode=self._render_mode)
@@ -167,6 +177,9 @@ class IsaacLabVectorEnv(
                 "priv_info_dim": self.priv_info_dim,
             }
         )
+        if "proprio_hist" in obs_dict:
+            ph = obs_dict["proprio_hist"]
+            infos["proprio_hist"] = ph.cpu().numpy() if self.to_numpy else ph
         return obs, infos
 
     def step(self, actions: Union[torch.Tensor, F32NDArray]) -> tuple[
@@ -211,6 +224,9 @@ class IsaacLabVectorEnv(
             terminations = terminations.cpu().numpy()
             truncations = truncations.cpu().numpy()
             infos = recursive_to_numpy(infos)
+        if "proprio_hist" in obs_dict:
+            ph = obs_dict["proprio_hist"]
+            infos["proprio_hist"] = ph.cpu().numpy() if self.to_numpy else ph
         return obs, rew, terminations, truncations, infos
 
     def close(self, **kwargs: Any) -> None:

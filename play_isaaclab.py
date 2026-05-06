@@ -105,6 +105,9 @@ def play(args: argparse.Namespace) -> None:
 
     env.close()
 
+    import sys
+    sys.exit(0)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Play a trained FlashSAC agent in IsaacLab")

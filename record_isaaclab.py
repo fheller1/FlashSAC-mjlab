@@ -56,11 +56,18 @@ def record(args: argparse.Namespace) -> None:
 
     # Set full gravity and disable curriculum (env starts at g=-0.05 with curriculum)
     import carb
+    from isaaclab.sim import SimulationContext
     unwrapped = cast(Any, env.envs.unwrapped)
     unwrapped.cfg.gravity_curriculum = False
     env.envs.unwrapped.physics_sim_view.set_gravity(carb.Float3(0.0, 0.0, -9.81))  # type: ignore
 
+    def _set_camera() -> None:
+        sim = SimulationContext.instance()
+        if sim is not None:
+            sim.set_camera_view(eye=args.camera_eye, target=args.camera_target)
+
     observations, env_info = env.reset(random_start_init=False)
+    _set_camera()
     agent = create_agent(
         observation_space=env.observation_space,
         action_space=env.action_space,
@@ -106,6 +113,10 @@ def record(args: argparse.Namespace) -> None:
     else:
         print("No frames captured — check that the env supports rgb_array render_mode.")
 
+    # IsaacSim's simulation app doesn't shut down via env.close(), force exit.
+    import sys
+    sys.exit(0)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Record a trained FlashSAC IsaacLab agent headlessly")
@@ -118,5 +129,7 @@ if __name__ == "__main__":
     parser.add_argument("--num_episodes", type=int, default=3)
     parser.add_argument("--fps", type=int, default=30)
     parser.add_argument("--device", type=str, default=None, help="CUDA device, e.g. cuda:0, cuda:1")
+    parser.add_argument("--camera_eye", type=float, nargs=3, default=[0.5, 0.5, 0.7], metavar=("X", "Y", "Z"))
+    parser.add_argument("--camera_target", type=float, nargs=3, default=[0.0, 0.0, 0.6], metavar=("X", "Y", "Z"))
     args = parser.parse_args()
     record(args)

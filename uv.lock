@@ -1302,7 +1302,7 @@ requires-dist = [
     { name = "pymeshlab", specifier = "==2023.12.post3" },
     { name = "rliable", specifier = "==1.2.0" },
     { name = "setuptools", specifier = "<=65" },
-    { name = "sharpawave-rl-lab", editable = "/home/fheller/sharpa-rl-lab-qol" },
+    { name = "sharpawave-rl-lab", git = "https://github.com/fheller1/sharpa-rl-lab-qol.git?rev=main" },
     { name = "shimmy", specifier = ">=2.0.0" },
     { name = "tensorboard" },
     { name = "tensorflow-probability", marker = "python_full_version == '3.10.*'", specifier = "==0.24.0" },
@@ -6483,7 +6483,7 @@ wheels = [
 [[package]]
 name = "sharpawave-rl-lab"
 version = "1.0.1"
-source = { editable = "/home/fheller/sharpa-rl-lab-qol" }
+source = { git = "https://github.com/fheller1/sharpa-rl-lab-qol.git?rev=main#68197e580f933ed23f827b7e79b536aefb601190" }
 
 [[package]]
 name = "shellingham"
