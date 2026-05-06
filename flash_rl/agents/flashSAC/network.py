@@ -16,6 +16,72 @@ from flash_rl.agents.flashSAC.layer import (
 )
 
 
+class RunningMeanStd(nn.Module):
+    """Welford online running mean/variance normalizer.
+
+    Updates running stats only in training mode (.train()); in eval mode (.eval()) only normalizes.
+    """
+
+    def __init__(self, shape: tuple[int, ...], eps: float = 1e-5):
+        super().__init__()
+        self.register_buffer("mean", torch.zeros(shape, dtype=torch.float32))
+        self.register_buffer("var", torch.ones(shape, dtype=torch.float32))
+        self.register_buffer("count", torch.tensor(0.0, dtype=torch.float64))
+        self.eps = eps
+
+    def update(self, x: torch.Tensor) -> None:
+        batch = x.reshape(-1, *self.mean.shape)
+        n = batch.shape[0]
+        batch_mean = batch.mean(0)
+        batch_var = batch.var(0, unbiased=False)
+        total = self.count + n
+        delta = batch_mean - self.mean
+        self.mean = self.mean + delta * (n / total)
+        self.var = (self.var * self.count + batch_var * n + delta.pow(2) * self.count * n / total) / total
+        self.count = total
+
+    def normalize(self, x: torch.Tensor) -> torch.Tensor:
+        return (x - self.mean) / (self.var.sqrt() + self.eps)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if self.training:
+            self.update(x.detach())
+        return self.normalize(x)
+
+
+class ProprioAdaptTConv(nn.Module):
+    """Temporal convolution network: proprio_hist (B, T, frame_dim) → latent (B, latent_dim).
+
+    Architecture from RMA (Qi et al. 2022): per-frame channel transform, then causal temporal
+    aggregation with three Conv1d layers, followed by a linear projection.
+    T=30 frames → after Conv1d(k=9,s=2), Conv1d(k=5), Conv1d(k=5): 3 output frames.
+    """
+
+    def __init__(self, frame_dim: int, latent_dim: int = 8):
+        super().__init__()
+        self.channel_transform = nn.Sequential(
+            nn.Linear(frame_dim, frame_dim),
+            nn.ReLU(inplace=True),
+            nn.Linear(frame_dim, frame_dim),
+            nn.ReLU(inplace=True),
+        )
+        self.temporal_aggregation = nn.Sequential(
+            nn.Conv1d(frame_dim, frame_dim, kernel_size=9, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv1d(frame_dim, frame_dim, kernel_size=5, stride=1),
+            nn.ReLU(inplace=True),
+            nn.Conv1d(frame_dim, frame_dim, kernel_size=5, stride=1),
+            nn.ReLU(inplace=True),
+        )
+        self.low_dim_proj = nn.Linear(frame_dim * 3, latent_dim)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.channel_transform(x)       # (B, T, frame_dim)
+        x = x.permute(0, 2, 1)              # (B, frame_dim, T)
+        x = self.temporal_aggregation(x)    # (B, frame_dim, 3)
+        return self.low_dim_proj(x.flatten(1))  # (B, latent_dim)
+
+
 def build_env_mlp(input_dim: int, units: list[int]) -> nn.Sequential:
     layers: list[nn.Module] = []
     in_dim = input_dim
