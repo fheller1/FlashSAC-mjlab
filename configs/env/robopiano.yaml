@@ -1,0 +1,6 @@
+env_type: 'mjlab'
+env_name: 'RoboPiano-ShadowHand'  # mjlab task ID passed to load_env_cfg()
+num_train_envs: ${num_train_envs}
+rescale_action: null
+max_episode_steps: null
+device: null  # null = auto (cuda:0 if available)

@@ -89,7 +89,7 @@ def create_envs(
         try:
             from omegaconf import OmegaConf
 
-            env_cfg_overrides: dict[str, Any] = OmegaConf.to_container(raw_overrides, resolve=True)  # type: ignore[assignment]
+            env_cfg_overrides: dict[str, Any] = OmegaConf.to_container(raw_overrides, resolve=True)
         except Exception:
             env_cfg_overrides = dict(raw_overrides)
         train_env = make_isaaclab_env(
@@ -101,6 +101,22 @@ def create_envs(
         )
         # NOTE: IsaacLab/IsaacSim only supports one SimulationApp instance per process by design.
         # See https://github.com/isaac-sim/IsaacLab/discussions/1241
+        eval_env = train_env
+        record_env = train_env
+
+    elif env_type == "mjlab":
+        from flash_rl.envs.mjlab import make_mjlab_env
+
+        assert rescale_action is None, "Unused hyperparameter in mjlab."
+        assert num_eval_envs is None, "Unused hyperparameter in mjlab (single sim instance)."
+        assert num_record_envs is None, "Unused hyperparameter in mjlab (single sim instance)."
+        device = kwargs.get("device") or ("cuda:0" if __import__("torch").cuda.is_available() else "cpu")
+        train_env = make_mjlab_env(
+            task_id=env_name,
+            num_envs=num_train_envs,
+            seed=seed,
+            device=device,
+        )
         eval_env = train_env
         record_env = train_env
 
