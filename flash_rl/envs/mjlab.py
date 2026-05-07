@@ -134,7 +134,11 @@ class MjlabVectorEnv(VectorEnv[F32NDArray, F32NDArray, F32NDArray]):
 
         # Emit episode return/length for done envs, merged with mjlab's per-reward-term extras
         done_ids_np = done_ids.cpu().numpy() if len(done_ids) > 0 else np.array([], dtype=np.int64)
-        episode_info: dict[str, Any] = dict(extras.get("log") or {})
+        raw_log = extras.get("log") or {}
+        episode_info: dict[str, Any] = {
+            k: float(v.mean().item()) if isinstance(v, torch.Tensor) else v
+            for k, v in raw_log.items()
+        }
         if len(done_ids_np) > 0:
             episode_info["episode_rewards"] = float(self._ep_returns[done_ids_np].mean())
             episode_info["episode_length"] = float(self._ep_lengths[done_ids_np].mean())
