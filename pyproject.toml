@@ -89,8 +89,9 @@ conflicts = [
     [{ extra = "mjlab" }, { extra = "d4rl" }],
     [{ extra = "mjlab" }, { extra = "genesis" }],
     [{ extra = "mjlab" }, { extra = "all" }],
-    # jax needs numpy>=2.1 on Python 3.13+; maniskill requires numpy<2
+    # jax needs numpy>=2.1 on Python 3.13+; maniskill/all require numpy<2
     [{ extra = "jax" }, { extra = "maniskill" }],
+    [{ extra = "jax" }, { extra = "all" }],
 ]
 
 environments = [
