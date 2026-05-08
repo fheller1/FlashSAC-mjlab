@@ -23,7 +23,6 @@ dependencies = [
     "gym>=0.26.0",
     "Cython==0.29.37",
     "pymeshlab==2023.12.post3",
-    "dm-control>=1.0.20",
     # [Config 1: Ubuntu 22.04 / RTX3090,4090 / Python 3.10]
     "torch>=2.5.1 ; python_version == '3.10'",
     # [Config 2: Ubuntu 24.04 / Blackwell(RTX50x0,Bx00) / Python 3.11]
@@ -50,6 +49,7 @@ d4rl = [
     "mujoco-py>=2.1.2.14", # Old mujoco often needed for D4RL
 ]
 mjlab = ["mjlab"]
+dm-control = ["dm-control>=1.0.20"]
 jax = [
     "optax==0.2.5",
     "rliable==1.2.0",
